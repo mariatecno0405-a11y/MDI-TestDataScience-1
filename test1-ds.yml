@@ -1,0 +1,22 @@
+name: test1-ds
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pandas
+  - numpy
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - jupyterlab
+  - joblib
+  - requests
+  - pip
+  - pip:
+    - shap
+    - xgboost
+    - black
+    - flake8
+    - isort
+    - mypy
+    - pre-commit
