@@ -1,15 +1,93 @@
 # TEST 1 - DATA SCIENCE - CLASSIFICATION
-Build and evaluate various machine learning classification models using Python.
+**Author:** María Donoso  
+**Dataset:** Becker, B. & Kohavi, R. (1996). *Adult* [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5XW20
 
-## GOAL
-The main goal of this test is to choose an open source dataset to realise an exploratory analysis (EDA), train and test some of the classification models that best fit.
-El objetivo de esta prueba es escoger un dataset abierto para realizar un análisis exploratiorio (EDA), así como entrenar y testear varios de los modelos de clasificación que mejor se ajustan al problema.
+## Objective
 
-## DATASET
-In our case, the selected dataset is open source and free, and comes from the University of California Irvine machine learning repository (Becker, B. & Kohavi, R. (1996). Adult [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5XW20). It contains information about different adults, such as their age, workclass, occupation or capital-gain and loss. Our main goal is to predict whether annual income of an individual exceeds $50K/yr based on census data. The number of features is 14, being one of them our target value.
+Build a fully reproducible pipeline to:
+1. Realise an Exploratory Data Analysis (EDA) on UCI Adult Income dataset.
+2. Train, backtest and compare different classification models.
+3. Choose the best model along metrics.
+4. Show results and conclusions.
+
+## Reproducibility
+- **Python**: 3.11+  
+- Key packages: `pandas`, `numpy`, `matplotlib`, `scikit-learn`, `xgboost`, `mlflow`
+### Option A — venv + pip
+```bash
+python -m venv .venv
+# Linux/Mac
+source .venv/bin/activate
+# Windows (PowerShell)
+.\.venv\Scripts\Activate.ps1
+
+pip install -U pip
+pip install -r requirements.txt
+```
+
+### Option B — conda (optional)
+```bash
+conda env create -f test1-ds.yml
+conda activate test1-ds
+```
+
+## Repository Layout
+```rb
+MDI-TestDataScience-1/           
+├── README.md
+├── requirements.txt 
+├── test1-ds.yml        # (optional - conda)
+├── notebooks/
+│   ├── 01_EDA.ipynb               # Data loading + cleaning + EDA
+│   ├── 02_modeling.ipynb          # Data modeling + metrics + conclusions
+├── data/
+│   ├── raw/                       # raw CSV placed here by user if needed
+│   ├── processed/                
+├── models/
+│   └── trained_model.joblib
+├── src/                            # example structure (not valid to reproduce this repository)
+│   ├── __init__.py
+│   ├── data/
+│   │   ├── load_data.py             
+│   ├── features/
+│   │   ├── preprocess.py
+│   ├── models/
+│   │   ├── train.py
+│   │   ├── predict.py
+│   │   └── utils.py
+│   └── evaluation/
+│       └── evaluate.py
+├── notebooks_html/                 # notebooks on HTML
+│   └── 01_EDA.html  
+├── tests/
+│   └── test_data.py
+├── mlflow/ or runs/
+├── deployment/
+│   ├── app.py            # FastAPI serving endpoints
+│   ├── Dockerfile
+│   └── requirements-deploy.txt   
+└── reports/
+    ├── report.tex     
+```
+## How To Run
+
+1) Execute `01_EDA.ipynb` end-to-end → generates `data/processed/adult.parquet`.  
+2) Execute `02_modeling.ipynb` end-to-end → trains models, selects the best one, calculates metrics, and plots evaluation.  
+
+To export the HTML notebooks:
+```bash
+jupyter nbconvert --to html 01_EDA.ipynb 02_modeling.ipynb
+```
+
+## Data Ingestion
+
+The selected dataset is open source and free, and comes from the University of California Irvine machine learning repository (Becker, B. & Kohavi, R. (1996). Adult [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5XW20). It contains census-like information about different adults, such as their age, workclass, occupation or capital-gain and loss. Our main goal is to predict whether annual income of an individual exceeds $50K/yr. The number of features is 14, being one of them our target value ("income").
+
+The EDA notebook loads the dataset from `data/raw/adult.csv` or from UCI (note that some environments may block outbound connections). **If offline**, download the CSV from the UCI repository.
 
 
-**Variable Information** 
+
+**Attribute Documentation** 
 - `age`: integer.
 - `workclass`: categorical (Private, Self-emp-not-inc, Self-emp-inc, Federal-gov, Local-gov, State-gov, Without-pay, Never-worked).
 - `fnlwgt`: integer.
@@ -26,96 +104,35 @@ In our case, the selected dataset is open source and free, and comes from the Un
 - `native-country`: categorical (United-States, Cambodia, England, Puerto-Rico, Canada, Germany, Outlying-US(Guam-USVI-etc), India, Japan, Greece, South, China, Cuba, Iran, Honduras, Philippines, Italy, Poland, Jamaica, Vietnam, Mexico, Portugal, Ireland, France, Dominican-Republic, Laos, Ecuador, Taiwan, Haiti, Columbia, Hungary, Guatemala, Nicaragua, Scotland, Thailand, Yugoslavia, El-Salvador, Trinadad&Tobago, Peru, Hong, Holand-Netherlands)
 - `income`: binary (50K, <=50K)
 
-#### Dataset import
-```rb
-from ucimlrepo import fetch_ucirepo 
-  
-# fetch dataset 
-adult = fetch_ucirepo(id=2) 
-  
-# data (as pandas dataframes) 
-X = adult.data.features 
-y = adult.data.targets 
-  
-# metadata 
-print(adult.metadata) 
-  
-# variable information 
-print(adult.variables) 
-```
+## Exploratory Data Analysis (notebook `01_EDA.ipynb`)
 
+- Loads Adult from `data/raw/adult.csv` or from UCI URL.  
+- Cleans: strip whitespace, replace `'?'` with `NaN`, cast numeric/categorical types, unify target to `{0,1}`.  
+- Splits into **train/valid/test** (60/20/20) with **stratification**.  
+- EDA visuals: class balance, numeric histograms, categorical cardinality.  
+- Saves splits to `data/processed/{train,valid,test}.parquet`.
 
-## Instrucciones para reproducir
+## Modeling (notebook `02_modeling.ipynb`)
 
-### Crear entorno
-```rb
-python -m venv .venv
-# activar:
-# Linux / Mac
-source .venv/bin/activate
-# Windows (Powershell)
-.\.venv\Scripts\Activate.ps1
-# actualizar pip
-pip install -U pip
-pip install -r requirements.txt
-```
+- Preprocessing with **ColumnTransformer**:
+  - Numeric: `SimpleImputer(median)` + `StandardScaler`  
+  - Categorical: `SimpleImputer(most_frequent)` + `OneHotEncoder(handle_unknown='ignore')`
+- Models:
+  - `LogisticRegression` (with/without `class_weight='balanced'`)
+  - `RandomForestClassifier`
+  - `HistGradientBoostingClassifier`
+  - *(optional)* XGBoost/LightGBM if available
+- CV: `StratifiedKFold(n_splits=5)`; **scores:** Accuracy, Precision, Recall, F1, ROC-AUC, **PR-AUC**.  
+- **Model selection:** best average **PR-AUC**.  
+- **Test evaluation:** confusion matrix + ROC + PR curves.  
+- **Persist:** `models/trained_model.joblib` + `models/model_card.json`.  
+- **Inference example** with a single row.
 
-```rb 
-conda env create -f test1-ds.yml
-conda activate test1-ds
-```
+## Metrics and Conclusions
 
-
-
-
-
-## Estructura del repo
-```rb
-MDI-TestDataScience-1/           
-├── README.md
-├── LICENSE
-├── requirements.txt 
-├── environment.yml (opcional - conda)
-├── notebooks/
-│   ├── 01_EDA.ipynb
-│   ├── 02_modeling.ipynb
-│   └── 03_results_and_conclusions.ipynb
-├── src/
-│   ├── __init__.py
-│   ├── data/
-│   │   ├── make_dataset.py             # descarga / limpieza
-│   ├── features/
-│   │   ├── build_features.py
-│   ├── models/
-│   │   ├── train.py
-│   │   ├── predict.py
-│   │   └── model_utils.py
-│   └── viz/
-│       └── plots.py
-├── tests/
-│   └── test_data.py
-├── models/
-│   └── trained_model.joblib
-├── mlflow/ or runs/
-├── deployment/
-│   ├── app.py            # FastAPI serving endpoints
-│   ├── Dockerfile
-│   └── requirements-deploy.txt
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-├── notebooks_html/
-│   └── 01_EDA.html     
-└── report/
-    ├── report.tex       # si haces LaTeX/beamer
-    └── report.pdf
-```
-
-
-
-
-
-
+- **Imbalanced** dataset → **PR-AUC** is the primary selection metric.  
+- Report full table of CV metrics and final **test** metrics.  
+- Provide model interpretation if needed (e.g., permutation importances on the pipeline).
 Accuracy is one metric for evaluating classification models. Informally, accuracy is the fraction of predictions our model got right. Formally, accuracy has the following definition:![Accuracy](https://github.com/Ansu-John/Classification-Models/blob/main/resources/Accuracy1.png)
 
 For binary classification, accuracy can also be calculated in terms of positives and negatives as follows:![Accuracy](https://github.com/Ansu-John/Classification-Models/blob/main/resources/Accuracy2.png)
@@ -174,24 +191,3 @@ So, ROC AUC is the percentage of the ROC plot that is underneath the curve.
 
 ![ROC](https://github.com/Ansu-John/Classification-Models/blob/main/resources/ROC.png)
 
-# REFERENCE
-
-https://www.geeksforgeeks.org/understanding-logistic-regression/
-
-https://medium.com/swlh/decision-tree-classification-de64fc4d5aac
-
-https://builtin.com/data-science/random-forest-algorithm
-
-https://medium.com/swlh/random-forest-classification-and-its-implementation-d5d840dbead0
-
-https://towardsdatascience.com/machine-learning-basics-with-the-k-nearest-neighbors-algorithm-6a6e71d01761
-
-https://www.datacamp.com/community/tutorials/k-nearest-neighbor-classification-scikit-learn
-
-https://www.datacamp.com/community/tutorials/svm-classification-scikit-learn-python
-
-https://www.datacamp.com/community/tutorials/naive-bayes-scikit-learn
-
-https://developers.google.com/machine-learning/crash-course/classification/accuracy
-
-https://towardsdatascience.com/model-evaluation-techniques-for-classification-models-eac30092c38b
