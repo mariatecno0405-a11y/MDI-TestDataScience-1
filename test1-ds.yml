@@ -11,6 +11,10 @@ dependencies:
   - jupyterlab
   - joblib
   - requests
+  - mlflow
+  - fastapi
+  - uvicorn
+
   - pip
   - pip:
     - shap
