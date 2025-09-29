@@ -3,13 +3,9 @@
 **Dataset:** Becker, B. & Kohavi, R. (1996). *Adult* [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5XW20
 
 ## Objective
+Build and evaluate several **classification** models (with clean EDA, proper preprocessing, and fair baselines) and justify the chosen model using appropriate **metrics** and **plots**.
 
-Build a fully reproducible pipeline to:
-1. Realise an Exploratory Data Analysis (EDA) on UCI Adult Income dataset.
-2. Train, backtest and compare different classification models.
-3. Choose the best model along metrics.
-4. Show results and conclusions.
-
+**Target:** predict whether annual income exceeds **$50K/yr** from census features.
 ## Reproducibility
 - **Python**: 3.11+  
 - Key packages: `pandas`, `numpy`, `matplotlib`, `scikit-learn`, `xgboost`, `mlflow`
@@ -32,6 +28,7 @@ conda activate test1-ds
 ```
 
 ## Repository Layout
+This layout shows what a production repository could look like (modules under src/, CI, Docker, etc.). For this TEST 1, you only need to run the notebooks under notebooks/.
 ```rb
 MDI-TestDataScience-1/           
 ├── README.md
@@ -45,7 +42,7 @@ MDI-TestDataScience-1/
 │   ├── processed/                
 ├── models/
 │   └── trained_model.joblib
-├── src/                            # example structure (not valid to reproduce this repository)
+├── src/                            # src code directory (example only; not required to run for this test)
 │   ├── __init__.py
 │   ├── data/
 │   │   ├── load_data.py             
@@ -57,17 +54,16 @@ MDI-TestDataScience-1/
 │   │   └── utils.py
 │   └── evaluation/
 │       └── evaluate.py
-├── notebooks_html/                 # notebooks on HTML
-│   └── 01_EDA.html  
+├── docs/                 # notebooks on HTML
+│   ├── 01_EDA.html             
+│   ├── 02_modeling.html 
 ├── tests/
 │   └── test_data.py
-├── mlflow/ or runs/
-├── deployment/
-│   ├── app.py            # FastAPI serving endpoints
+├── mlflow/ or runs/      # run `mlflow ui` command-line to visualize tracking server with all experiments
+├── deployment/           # FastAPI serving endpoints (example only; not required to run for this test)
+│   ├── app.py            
 │   ├── Dockerfile
-│   └── requirements-deploy.txt   
-└── reports/
-    ├── report.tex     
+│   └── requirements-deploy.txt     
 ```
 ## How To Run
 
@@ -76,7 +72,7 @@ MDI-TestDataScience-1/
 
 To export the HTML notebooks:
 ```bash
-jupyter nbconvert --to html 01_EDA.ipynb 02_modeling.ipynb
+jupyter nbconvert --output-dir "../docs/" --to html 01_EDA.ipynb 02_modeling.ipynb
 ```
 
 ## Data Ingestion
@@ -106,88 +102,54 @@ The EDA notebook loads the dataset from `data/raw/adult.csv` or from UCI (note t
 
 ## Exploratory Data Analysis (notebook `01_EDA.ipynb`)
 
-- Loads Adult from `data/raw/adult.csv` or from UCI URL.  
-- Cleans: strip whitespace, replace `'?'` with `NaN`, cast numeric/categorical types, unify target to `{0,1}`.  
-- Splits into **train/valid/test** (60/20/20) with **stratification**.  
+- Loads data from `data/raw/adult.csv` or from UCI URL.  
+- Cleans: strip whitespace, replace `'?'` with `NaN`, cast numeric/categorical types, unify target to `{0,1}`.    
 - EDA visuals: class balance, numeric histograms, categorical cardinality.  
-- Saves splits to `data/processed/{train,valid,test}.parquet`.
+- Saves splits to `data/processed/adult.parquet`.
 
 ## Modeling (notebook `02_modeling.ipynb`)
-
+- Splits data into **train/test** (80/20) with **stratification**.
 - Preprocessing with **ColumnTransformer**:
   - Numeric: `SimpleImputer(median)` + `StandardScaler`  
   - Categorical: `SimpleImputer(most_frequent)` + `OneHotEncoder(handle_unknown='ignore')`
 - Models:
-  - `LogisticRegression` (with/without `class_weight='balanced'`)
+  - `LogisticRegression`
   - `RandomForestClassifier`
-  - `HistGradientBoostingClassifier`
-  - *(optional)* XGBoost/LightGBM if available
+  - `XGBoost`
 - CV: `StratifiedKFold(n_splits=5)`; **scores:** Accuracy, Precision, Recall, F1, ROC-AUC, **PR-AUC**.  
 - **Model selection:** best average **PR-AUC**.  
 - **Test evaluation:** confusion matrix + ROC + PR curves.  
-- **Persist:** `models/trained_model.joblib` + `models/model_card.json`.  
-- **Inference example** with a single row.
+- **Output:** `models/trained_model.joblib`.
+- **Inference example** with a single adult data.
 
-## Metrics and Conclusions
+## Performance Metrics
+Once our supervised learning model have been trained, it is very important to analyze **performance metrics**, as they are essential to evaluate the accuracy and efficiency of our model. First of all, we need to understand the following important concepts: 
+- **True Positives (TP):** correctly predicted positive cases. 
+- **False Positives (FP):** incorrectly predicted positive cases. 
+- **False Negatives (FN):** incorrectly predicted negative cases. 
+- **True Negatives (TN):** correctly predicted negative cases.
 
-- **Imbalanced** dataset → **PR-AUC** is the primary selection metric.  
-- Report full table of CV metrics and final **test** metrics.  
-- Provide model interpretation if needed (e.g., permutation importances on the pipeline).
-Accuracy is one metric for evaluating classification models. Informally, accuracy is the fraction of predictions our model got right. Formally, accuracy has the following definition:![Accuracy](https://github.com/Ansu-John/Classification-Models/blob/main/resources/Accuracy1.png)
+Classification problems aim to predict discrete categories. To evaluate the performance of classification models, we use the following metrics:
+- **Accuracy:** it indicates the proportion of correct predictions made by the model out of all predictions.
 
-For binary classification, accuracy can also be calculated in terms of positives and negatives as follows:![Accuracy](https://github.com/Ansu-John/Classification-Models/blob/main/resources/Accuracy2.png)
+**Accuracy** alone doesn't tell the full story when you're working with a **class-imbalanced data set**, where there is a significant disparity between the number of positive and negative labels. It gives a False Positive sense of achieving high accuracy. Metrics for evaluating class-imbalanced problems are **precision** and **recall**:
 
-Where TP = True Positives, TN = True Negatives, FP = False Positives, and FN = False Negatives.
+- **Precision:** it calculates the proportion of detected positives that are actually correct, measuring the model’s ability to avoid false positives. It is defined by: $$Precision = \frac{TP}{TP + FP}$$
+- **Recall (or Sensitivity):** it calculates the proportion of true positives among all actual positives. It is defined by: $$Precision = \frac{TP}{TP + FN}$$ 
 
-Accuracy alone doesn't tell the full story when you're working with a **class-imbalanced data set**, where there is a significant disparity between the number of positive and negative labels. Metrics for evaluating class-imbalanced problems are precision and recall.
+A **confusion matrix** is a tool for summarizing the performance of a classification algorithm. It will give us a clear picture of classification model performance and the types of errors produced by the model. It gives us a summary of correct and incorrect predictions broken down by each category. **Classification report** is another way to evaluate the classification model performance. It displays the precision, recall, f1 and support scores for the model. 
+- **F1 score:** it is the harmonic mean of **precision** and **recall**. It is useful when we need a balance between precision and recall as it combines both into a single number. A high F1 score means the model performs well on both metrics. Its range is [0,1] and it is defined by: $$ F1= 2\cdot \frac{Precision \cdot Recall}{Precision + Recall}$$ 
 
-### Confusion matrix
+The last, but not least, metric we are going to consider is **Area Under Curve (AUC) and ROC Curve.** The AUC value represents the probability that the model will rank a randomly chosen positive example higher than a randomly chosen negative example. AUC ranges from 0 to 1 with higher values showing better model performance. 
+- **True Positive Rate (TPR):** it is equal to **recall**.
+- **True Negative Rate (TNR):** also called specificity, it measures how many actual negative instances were correctly identified by the model. It is defined by: $$TNR = \frac{TN}{TN + FP}$$
+- **False Positive Rate (FPR):** it measures how many actual negative instances were incorrectly classified as positive. It’s a key metric when the cost of false positives is high such as in fraud detection. It is defined by: $$FPR = \frac{FP}{TN + FP}$$
+- **False Negative Rate (FNR):** it measures how many actual positive instances were incorrectly classified as negative. It is defined by: $$FNR = \frac{FN}{TN + FP}$$
 
-A confusion matrix is a tool for summarizing the performance of a classification algorithm. A confusion matrix will give us a clear picture of classification model performance and the types of errors produced by the model. It gives us a summary of correct and incorrect predictions broken down by each category. The summary is represented in a tabular form.
+The **ROC Curve** is a graphical representation of the **True Positive Rate (TPR)** vs the **False Positive Rate (FPR)** at different classification thresholds. The curve helps us visualize the trade-offs between sensitivity (TPR) and specificity (1 - FPR) across various thresholds. **Area Under Curve (AUC)** quantifies the overall ability of the model to distinguish between positive and negative classes.
 
-Four types of outcomes are possible while evaluating a classification model performance. These four outcomes are described below:-
+- **AUC = 1:** Perfect model (always correctly classifies positives and negatives).
+- **AUC = 0.5:** Model performs no better than random guessing.
+- **AUC < 0.5:** Model performs worse than random guessing (showing that the model is inverted).
 
-+ **True Positives (TP)** – True Positives occur when we predict an observation belongs to a certain class and the observation actually belongs to that class.
-+ **True Negatives (TN)** – True Negatives occur when we predict an observation does not belong to a certain class and the observation actually does not belong to that class.
-+ **False Positives (FP)** – False Positives occur when we predict an observation belongs to a certain class but the observation actually does not belong to that class. This type of error is called Type I error.
-+ **False Negatives (FN)** – False Negatives occur when we predict an observation does not belong to a certain class but the observation actually belongs to that class. This is a very serious error and it is called Type II error.
-
-![Error Types](https://github.com/Ansu-John/Classification-Models/blob/main/resources/errorTypes.png)
-
-These four outcomes are summarized in a confusion matrix given below.
-
-![ConfusionMatrix](https://github.com/Ansu-John/Classification-Models/blob/main/resources/confusionMatrix.png)
-
-### Classification Report
-Classification report is another way to evaluate the classification model performance. It displays the precision, recall, f1 and support scores for the model. 
-
-![ClassificationReport](https://github.com/Ansu-John/Classification-Models/blob/main/resources/ClassificationReport.png)
-
-#### Precision
-Precision can be defined as the percentage of correctly predicted positive outcomes out of all the predicted positive outcomes. It can be given as the ratio of true positives (TP) to the sum of true and false positives (TP + FP).
-
-So, Precision identifies the proportion of correctly predicted positive outcome. It is more concerned with the positive class than the negative class.
-
-Mathematically, precision can be defined as the ratio of TP to (TP + FP).
-
-#### Recall
-Recall can be defined as the percentage of correctly predicted positive outcomes out of all the actual positive outcomes. It can be given as the ratio of true positives (TP) to the sum of true positives and false negatives (TP + FN). Recall is also called Sensitivity.
-
-Recall identifies the proportion of correctly predicted actual positives.
-
-Mathematically, recall can be given as the ratio of TP to (TP + FN). True Positive Rate is synonymous with Recall and can be given as the ratio of TP to (TP + FN).
-
-#### f1-score
-f1-score is the weighted harmonic mean of precision and recall. The best possible f1-score would be 1.0 and the worst would be 0.0. f1-score is the harmonic mean of precision and recall. So, f1-score is always lower than accuracy measures as they embed precision and recall into their computation. The weighted average of f1-score should be used to compare classifier models, not global accuracy.
-
-### Receiver Operating Characteristics (ROC) Curve
-Another tool to measure the classification model performance visually is ROC Curve. ROC Curve stands for Receiver Operating Characteristic Curve. An ROC Curve is a plot which shows the performance of a classification model at various classification threshold levels.
-
-The ROC Curve plots the True Positive Rate (TPR) against the False Positive Rate (FPR) at various threshold levels. True Positive Rate (TPR) is also called Recall. It is defined as the ratio of TP to (TP + FN). False Positive Rate (FPR) is defined as the ratio of FP to (FP + TN).
-
-**ROC AUC** stands for Receiver Operating Characteristic - Area Under Curve. It is a technique to compare classifier performance. In this technique, we measure the area under the curve (AUC). A perfect classifier will have a ROC AUC equal to 1, whereas a purely random classifier will have a ROC AUC equal to 0.5.
-
-So, ROC AUC is the percentage of the ROC plot that is underneath the curve.
-
-![ROC](https://github.com/Ansu-John/Classification-Models/blob/main/resources/ROC.png)
 
